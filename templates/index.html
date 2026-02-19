@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>KAVACH AI | Ultimate Driver Safety</title>
+    <style>
+        /* --- CORE STYLING --- */
+        body { margin: 0; background: #000; color: white; font-family: 'Segoe UI', sans-serif; overflow: hidden; }
+        
+        /* Background Video */
+        .bg-video { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; }
+        #roadVideo { width: 100%; height: 100%; object-fit: cover; filter: brightness(0.4); }
+        
+        /* Main HUD Layout */
+        .hud { position: relative; z-index: 5; padding: 30px; height: 100vh; display: flex; flex-direction: column; justify-content: space-between; box-sizing: border-box; }
+        
+        /* Header */
+        h1 { color: #f1c40f; margin: 0; text-shadow: 0 0 15px #f1c40f; font-size: 42px; letter-spacing: 2px; }
+        .subtitle { color: #aaa; font-size: 14px; letter-spacing: 1px; margin-bottom: 15px; }
+
+        /* Status Indicators */
+        .status-panel { display: flex; gap: 15px; margin-top: 10px; }
+        .indicator { 
+            padding: 10px 20px; background: rgba(0,0,0,0.85); border: 2px solid #555; 
+            border-radius: 8px; font-weight: bold; font-size: 14px; min-width: 140px; 
+            text-align: center; box-shadow: 0 5px 15px rgba(0,0,0,0.5); 
+        }
+        .safe { border-color: #2ecc71; color: #2ecc71; box-shadow: 0 0 10px #2ecc71; }
+        .alert-text { border-color: #e74c3c; color: #e74c3c; animation: blink 1s infinite; box-shadow: 0 0 15px #e74c3c; }
+
+        /* Start Engine Button */
+        .btn { 
+            width: 160px; height: 160px; border-radius: 50%; border: 5px solid #444; 
+            background: radial-gradient(circle, #222, #000); color: #777; font-weight: bold; 
+            cursor: pointer; display: flex; align-items: center; justify-content: center; 
+            text-align: center; position: absolute; top: 50%; left: 50%; 
+            transform: translate(-50%, -50%); transition: 0.3s; z-index: 10; font-size: 18px;
+        }
+        .btn-on { border-color: #2ecc71; color: #2ecc71; box-shadow: 0 0 40px #2ecc71; }
+        .btn-ready { border-color: #f1c40f; color: #f1c40f; box-shadow: 0 0 25px #f1c40f; }
+
+        /* SOS Button */
+        .sos-btn { 
+            position: absolute; top: 50%; right: 40px; transform: translateY(-50%); 
+            width: 110px; height: 110px; background: #c0392b; border: 4px solid #e74c3c; 
+            border-radius: 50%; color: white; font-weight: bold; cursor: pointer; 
+            display: flex; align-items: center; justify-content: center; font-size: 24px; 
+            box-shadow: 0 0 25px #c0392b; z-index: 10; transition: 0.2s;
+        }
+        .sos-btn:active { transform: translateY(-50%) scale(0.9); }
+
+        /* Suggestion Box (Fatigue) */
+        #suggestion-box { 
+            display: none; position: fixed; top: 20%; right: 40px; width: 320px; 
+            background: rgba(10,10,10,0.95); padding: 25px; border-radius: 12px; 
+            border-left: 6px solid #f1c40f; z-index: 100; box-shadow: 0 10px 30px rgba(0,0,0,0.8); 
+        }
+        .s-btn { 
+            width: 100%; padding: 12px; margin-top: 10px; border: none; border-radius: 5px; 
+            font-weight: bold; color: white; cursor: pointer; font-size: 14px; 
+        }
+        .btn-tea { background: #e67e22; }
+        .btn-mot { background: #3498db; }
+
+        /* Camera Feed */
+        .ai-camera { 
+            position: fixed; bottom: 30px; right: 30px; width: 320px; height: 240px; 
+            border: 3px solid #1c7a97; border-radius: 12px; overflow: hidden; 
+            background: #000; z-index: 100; box-shadow: 0 0 20px #1c7a97; 
+        }
+        .ai-camera img { width: 100%; height: 100%; object-fit: cover; }
+
+        /* Animations */
+        @keyframes blink { 50% { opacity: 0.5; } }
+        .hud-alert { box-shadow: inset 0 0 150px rgba(255, 0, 0, 0.6); animation: pulseRed 0.5s infinite alternate; }
+        @keyframes pulseRed { from { box-shadow: inset 0 0 50px rgba(255,0,0,0.4); } to { box-shadow: inset 0 0 150px rgba(255,0,0,0.8); } }
+    </style>
+</head>
+<body>
+    
+    <div class="bg-video">
+        <video id="roadVideo" loop muted>
+            <source src="{{ url_for('static', filename='road_video.mp4') }}" type="video/mp4">
+        </video>
+    </div>
+
+    <div class="hud" id="main-hud">
+        <div>
+            <h1>KAVACH AI</h1>
+            <div class="subtitle">INTELLIGENT DRIVER MONITORING SYSTEM</div>
+            
+            <div class="status-panel">
+                <div id="sb" class="indicator">SEATBELT: NO</div>
+                <div id="dr" class="indicator">EYES: ACTIVE</div>
+                <div id="fo" class="indicator">FOCUS: GOOD</div>
+                <div id="yn" class="indicator">YAWNS: 0</div>
+            </div>
+        </div>
+
+        <div id="start-btn" class="btn" onclick="toggleEngine()">SYSTEM<br>LOCKED</div>
+        
+        <div class="sos-btn" onclick="triggerEmergency()">SOS</div>
+    </div>
+    
+    <div id="suggestion-box">
+        <h3 style="color:#f1c40f; margin:0 0 10px 0;">⚠️ FATIGUE DETECTED</h3>
+        <p style="color:#ccc; font-size:14px;">High yawn count detected. Do you need coffee or motivation?</p>
+        
+        <button class="s-btn btn-tea" onclick="findTea()">☕ Find Nearby Tea Stall</button>
+        
+        <button class="s-btn btn-mot" onclick="playMotivation()">🔥 Play Motivation</button>
+        
+        <button class="s-btn" style="background:#555; margin-top:5px;" onclick="closeSuggestion()">Dismiss</button>
+    </div>
+
+    <div class="ai-camera">
+        <img src="{{ url_for('video_feed') }}" onerror="this.style.display='none'">
+    </div>
+
+    <script>
+        let isEngineRunning = false;
+        let lastAlert = null;
+        let suggestionShown = false; // Prevents the loop
+        const speechSynth = window.speechSynthesis;
+
+        // --- SPEECH FUNCTION ---
+        function speak(text) {
+            if (speechSynth.speaking) return;
+            const msg = new SpeechSynthesisUtterance(text);
+            msg.rate = 1.0;
+            speechSynth.speak(msg);
+        }
+
+        // --- 1. EMERGENCY SOS ---
+        async function triggerEmergency() { 
+            speak("Sending Emergency Alert to Family.");
+            await fetch('/emergency_alert', {method: 'POST'}); 
+            alert("🚨 SOS SIGNAL SENT! Location shared with emergency contacts."); 
+        }
+
+        // --- 2. TEA FINDER FUNCTION ---
+        function findTea() {
+            speak("Opening maps for nearest tea stall.");
+            window.open("http://googleusercontent.com/maps.google.com/search?q=tea+coffee+break+near+me", "_blank");
+            closeSuggestion();
+        }
+
+        // --- 3. MOTIVATION FUNCTION ---
+        function playMotivation() {
+            const quotes = [
+                "Wake up! Your family is waiting for you at home.",
+                "Stay strong. The destination is near.",
+                "One second of sleep can cost a lifetime. Focus!",
+                "Drive safe, someone loves you."
+            ];
+            const randomQuote = quotes[Math.floor(Math.random() * quotes.length)];
+            speak(randomQuote);
+            closeSuggestion();
+        }
+
+        function closeSuggestion() {
+            document.getElementById('suggestion-box').style.display = 'none';
+            // We DO NOT reset 'suggestionShown' immediately so it doesn't pop up again instantly.
+            // It will reset automatically after 60 seconds (handled in next loop logic if needed) or simple page refresh.
+        }
+
+        // --- 4. ENGINE START/STOP INTERLOCK ---
+        async function toggleEngine() {
+            const res = await fetch('/get_status'); 
+            const data = await res.json();
+            
+            if(!isEngineRunning && !data.seatbelt) {
+                alert("⚠️ INTERLOCK ACTIVE: Camera must detect face (Seatbelt) to start engine!");
+                speak("Please look at the camera to start.");
+                return;
+            }
+            
+            isEngineRunning = !isEngineRunning;
+            
+            // Toggle Video
+            const vid = document.getElementById('roadVideo');
+            isEngineRunning ? vid.play() : vid.pause();
+
+            // Toggle Button Visuals
+            const btn = document.getElementById('start-btn');
+            btn.className = isEngineRunning ? "btn btn-on" : "btn btn-ready";
+            btn.innerHTML = isEngineRunning ? "KAVACH<br>ACTIVE" : "START<br>ENGINE";
+            
+            // Tell Backend
+            fetch(isEngineRunning ? '/start_engine' : '/stop_engine', {method: 'POST'});
+            speak(isEngineRunning ? "System Activated. Drive Safe." : "System Deactivated.");
+        }
+
+        // --- MAIN DATA LOOP ---
+        setInterval(async () => {
+            try {
+                const res = await fetch('/get_status'); 
+                const data = await res.json();
+                
+                // Alert Popups (Tilt, Camera Block)
+                if(data.alert_message && data.alert_message !== lastAlert) { 
+                    alert(data.alert_message); 
+                    speak(data.alert_message); 
+                    lastAlert = data.alert_message; 
+                }
+
+                // Update Indicators
+                document.getElementById('sb').className = "indicator " + (data.seatbelt ? "safe" : "alert-text");
+                document.getElementById('sb').innerText = data.seatbelt ? "SEATBELT: OK" : "SEATBELT: NO";
+
+                document.getElementById('dr').className = "indicator " + (data.drowsy ? "alert-text" : "safe");
+                document.getElementById('dr').innerText = data.drowsy ? "EYES: DROWSY!" : "EYES: ACTIVE";
+
+                document.getElementById('fo').className = "indicator " + (data.distracted ? "alert-text" : "safe");
+                document.getElementById('fo').innerText = data.distracted ? "FOCUS: DISTRACTED" : "FOCUS: GOOD";
+
+                document.getElementById('yn').innerText = "YAWNS: " + data.yawn_count;
+
+                // 🟢 FIXED SUGGESTION LOGIC (ONE-TIME TRIGGER)
+                if(data.suggestion && !suggestionShown) {
+                    document.getElementById('suggestion-box').style.display = 'block';
+                    speak("You look tired. Do you need coffee or motivation?");
+                    suggestionShown = true; // Prevents looping
+                }
+
+                // HUD Red Flash Alert (Drowsy/Distracted)
+                if(isEngineRunning && (data.drowsy || data.distracted)) {
+                    document.body.classList.add('hud-alert');
+                    // Randomly speak "Wake up" to avoid constant noise
+                    if(data.drowsy && Math.random() > 0.8) speak("Wake up!");
+                    if(data.distracted && Math.random() > 0.8) speak("Eyes on the road!");
+                } else { 
+                    document.body.classList.remove('hud-alert'); 
+                }
+
+                // Engine Button Ready State
+                if (!isEngineRunning) {
+                    const btn = document.getElementById('start-btn');
+                    if (data.seatbelt) {
+                        btn.className = "btn btn-ready";
+                        btn.innerHTML = "START<br>ENGINE";
+                    } else {
+                        btn.className = "btn";
+                        btn.innerHTML = "SYSTEM<br>LOCKED";
+                    }
+                }
+            } catch(e) { console.log("Waiting for server..."); }
+        }, 1000);
+    </script>
+</body>
+</html>
